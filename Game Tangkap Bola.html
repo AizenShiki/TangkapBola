@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Tangkap Bola</title>
+    <style>
+        /* Gaya Umum */
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        canvas {
+            display: none;
+            background-color: lightblue;
+        }
+
+        /* Main Menu */
+        .menu {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: lightcoral;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .menu h1 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+
+        .menu button {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            color: lightcoral;
+            background-color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .menu button:hover {
+            background-color: #ffe5e5;
+        }
+
+        .menu .tutorial {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            font-size: 0.9em;
+            color: white;
+        }
+
+        /* Tombol Kontrol Mobile */
+        .controls {
+            display: none;
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .controls button {
+            background-color: white;
+            border: none;
+            color: black;
+            font-size: 1.5em;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin: 0 10px;
+            cursor: pointer;
+        }
+
+        .controls button:active {
+            background-color: lightgray;
+        }
+
+        /* Tombol Pause dan Menu */
+        .button-group {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .button-group button {
+            background-color: white;
+            border: none;
+            font-size: 1.2em;
+            padding: 10px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .button-group button:active {
+            background-color: lightgray;
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Menu -->
+    <div class="menu" id="mainMenu">
+        <h1>Game Tangkap Bola</h1>
+        <p>High Score: <span id="highScore">0</span></p>
+        <button onclick="startGame()">Mulai Game</button>
+        <p class="tutorial">Gunakan tombol panah (desktop) atau tombol di layar (mobile) untuk bergerak.</p>
+    </div>
+
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Tombol Kontrol Mobile -->
+    <div class="controls" id="controls">
+        <button id="leftButton">⬅</button>
+        <button id="rightButton">➡</button>
+    </div>
+
+    <!-- Tombol Pause dan Kembali -->
+    <div class="button-group" id="buttonGroup" style="display: none;">
+        <button onclick="togglePause()">Pause</button>
+        <button onclick="returnToMenu()">Kembali ke Menu</button>
+    </div>
+
+    <script>
+        // Inisialisasi kanvas
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const controls = document.getElementById("controls");
+        const buttonGroup = document.getElementById("buttonGroup");
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Properti pemain
+        const player = {
+            x: canvas.width / 2 - 50,
+            y: canvas.height - 30,
+            width: 100,
+            height: 20,
+            color: "blue",
+            speed: 10
+        };
+
+        // Properti bola
+        const ball = {
+            x: Math.random() * canvas.width,
+            y: 0,
+            radius: 15,
+            color: "red",
+            speed: 3
+        };
+
+        let score = 0;
+        let highScore = localStorage.getItem("highScore") || 0;
+        let gameRunning = false;
+        let gamePaused = false;
+        let moveLeft = false;
+        let moveRight = false;
+
+        document.getElementById("highScore").textContent = highScore;
+
+        // Fungsi menggambar pemain
+        function drawPlayer() {
+            ctx.fillStyle = player.color;
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+        }
+
+        // Fungsi menggambar bola
+        function drawBall() {
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = ball.color;
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        // Fungsi memperbarui bola
+        function updateBall() {
+            ball.y += ball.speed;
+
+            // Jika bola keluar dari layar, reset posisinya
+            if (ball.y > canvas.height) {
+                ball.x = Math.random() * canvas.width;
+                ball.y = 0;
+            }
+
+            // Deteksi tabrakan
+            if (
+                ball.y + ball.radius >= player.y &&
+                ball.x >= player.x &&
+                ball.x <= player.x + player.width
+            ) {
+                score++;
+                ball.x = Math.random() * canvas.width;
+                ball.y = 0;
+                ball.speed += 0.5; // Tingkatkan kecepatan bola
+            }
+        }
+
+        // Fungsi menggambar skor
+        function drawScore() {
+            ctx.font = "20px Arial";
+            ctx.fillStyle = "black";
+            ctx.fillText("Skor: " + score, 10, 30);
+        }
+
+        // Fungsi game loop
+        function gameLoop() {
+            if (!gameRunning || gamePaused) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawPlayer();
+            drawBall();
+            updateBall();
+            drawScore();
+
+            if (moveLeft && player.x > 0) {
+                player.x -= player.speed;
+            }
+            if (moveRight && player.x + player.width < canvas.width) {
+                player.x += player.speed;
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Fungsi memulai game
+        function startGame() {
+            document.getElementById("mainMenu").style.display = "none";
+            canvas.style.display = "block";
+            buttonGroup.style.display = "block";
+            if (window.innerWidth <= 600) {
+                controls.style.display = "block";
+            }
+            score = 0;
+            gameRunning = true;
+            gamePaused = false;
+            gameLoop();
+        }
+
+        // Fungsi Pause/Resume
+        function togglePause() {
+            gamePaused = !gamePaused;
+            if (!gamePaused) {
+                gameLoop();
+            }
+        }
+
+        // Fungsi kembali ke menu
+        function returnToMenu() {
+            gameRunning = false;
+            gamePaused = false;
+            canvas.style.display = "none";
+            buttonGroup.style.display = "none";
+            controls.style.display = "none";
+            document.getElementById("mainMenu").style.display = "flex";
+
+            // Simpan High Score
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem("highScore", highScore);
+                document.getElementById("highScore").textContent = highScore;
+            }
+        }
+
+        // Kontrol pemain desktop
+        window.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowLeft") moveLeft = true;
+            if (e.key === "ArrowRight") moveRight = true;
+        });
+
+        window.addEventListener("keyup", (e) => {
+            if (e.key === "ArrowLeft") moveLeft = false;
+            if (e.key === "ArrowRight") moveRight = false;
+        });
+
+        // Kontrol pemain mobile
+        document.getElementById("leftButton").addEventListener("touchstart", () => moveLeft = true);
+        document.getElementById("leftButton").addEventListener("touchend", () => moveLeft = false);
+
+        document.getElementById("rightButton").addEventListener("touchstart", () => moveRight = true);
+        document.getElementById("rightButton").addEventListener("touchend", () => moveRight = false);
+    </script>
+</body>
+</html>
